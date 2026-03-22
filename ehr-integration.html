@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EHR Integration Details | SE TechGuide</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --graphite: #010F0C;
+  --blue-litmus: #335AF1;
+  --velocity: #A8F4FF;
+  --glacier: #FFFFFF;
+  --stealth-grey: #D9D9D9;
+  --yellow-flag: #F5A623;
+  --green: #2ECC71;
+  --red: #E74C3C;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Montserrat', system-ui, -apple-system, sans-serif; background: #F5F6F8; color: var(--graphite); font-size: 14px; line-height: 1.5; }
+h1,h2,h3,h4 { font-family: 'Syne', system-ui, sans-serif; }
+
+/* Header */
+header { background: var(--graphite); color: var(--glacier); padding: 12px 24px; display: flex; align-items: center; gap: 12px; }
+header a.back { color: var(--velocity); text-decoration: none; font-size: 13px; font-weight: 600; white-space: nowrap; }
+header a.back:hover { text-decoration: underline; }
+header h1 { font-size: 18px; font-weight: 700; }
+
+/* Error banner */
+#error-banner { background: var(--red); color: var(--glacier); padding: 12px 24px; font-size: 14px; font-weight: 600; display: none; }
+#error-banner.visible { display: block; }
+
+/* Loading */
+#loading { text-align: center; padding: 80px 24px; font-size: 15px; color: #666; }
+
+/* Main content */
+#content { display: none; max-width: 1000px; margin: 0 auto; padding: 20px 24px 60px; }
+#content.visible { display: block; }
+
+/* EHR header */
+.ehr-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.ehr-header h2 { font-size: 24px; font-weight: 800; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.badge-green { background: var(--green); color: var(--glacier); }
+.badge-yellow { background: var(--yellow-flag); color: var(--graphite); }
+.badge-red { background: var(--red); color: var(--glacier); }
+.badge-blue { background: var(--blue-litmus); color: var(--glacier); }
+.badge-grey { background: var(--stealth-grey); color: var(--graphite); }
+
+.aliases { font-size: 12px; color: #666; margin-bottom: 20px; }
+
+/* Sections */
+.section { background: var(--glacier); border: 1px solid var(--stealth-grey); border-radius: 6px; margin-bottom: 16px; }
+.section-header { background: var(--graphite); color: var(--glacier); padding: 8px 16px; border-radius: 5px 5px 0 0; font-family: 'Syne', system-ui, sans-serif; font-size: 14px; font-weight: 700; }
+.section-body { padding: 16px; }
+
+/* Field mapping table */
+.field-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.field-table th { background: #f0f1f3; text-align: left; padding: 8px 12px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--stealth-grey); }
+.field-table td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+.field-table tr:last-child td { border-bottom: none; }
+.field-table tr:hover td { background: #f8f9fa; }
+
+/* Detail grid */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.detail-item { padding: 8px 0; border-bottom: 1px solid #eee; }
+.detail-item:last-child { border-bottom: none; }
+.detail-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #666; margin-bottom: 2px; }
+.detail-value { font-size: 13px; }
+.detail-full { grid-column: 1 / -1; }
+
+/* Demo patient */
+.demo-patient { background: var(--velocity); color: var(--graphite); padding: 12px 16px; border-radius: 4px; font-family: 'Montserrat', monospace; font-size: 13px; font-weight: 600; word-break: break-all; }
+
+/* Blocker cards */
+.blocker-card { background: #fef9f0; border-left: 4px solid var(--yellow-flag); padding: 12px 16px; margin-bottom: 10px; border-radius: 0 4px 4px 0; }
+.blocker-card:last-child { margin-bottom: 0; }
+.blocker-signal { font-weight: 700; font-size: 13px; margin-bottom: 4px; color: var(--graphite); }
+.pivot-path { font-size: 13px; color: #444; }
+.pivot-label { font-weight: 600; color: var(--blue-litmus); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Guidance */
+.guidance-box { background: #f0f4ff; border-left: 4px solid var(--blue-litmus); padding: 12px 16px; border-radius: 0 4px 4px 0; margin-bottom: 10px; font-size: 13px; }
+.guidance-box:last-child { margin-bottom: 0; }
+.guidance-label { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--blue-litmus); margin-bottom: 4px; }
+
+/* Metadata */
+.meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.meta-item .detail-label { font-size: 10px; }
+.meta-item .detail-value { font-size: 12px; }
+
+/* Not found */
+#not-found { display: none; max-width: 700px; margin: 60px auto; padding: 0 24px; }
+#not-found.visible { display: block; }
+#not-found h2 { font-size: 22px; margin-bottom: 8px; }
+#not-found p { color: #666; margin-bottom: 20px; }
+.ehr-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
+.ehr-list li a { display: block; padding: 8px 12px; background: var(--glacier); border: 1px solid var(--stealth-grey); border-radius: 4px; text-decoration: none; color: var(--blue-litmus); font-weight: 600; font-size: 13px; }
+.ehr-list li a:hover { background: #f0f4ff; border-color: var(--blue-litmus); }
+.ehr-list li a .ehr-status { font-size: 11px; color: #666; font-weight: 400; }
+
+@media (max-width: 700px) {
+  .detail-grid { grid-template-columns: 1fr; }
+  .meta-grid { grid-template-columns: 1fr 1fr; }
+  .ehr-header { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back" href="index.html">&larr; TechGuide</a>
+  <h1>EHR Integration Details</h1>
+</header>
+
+<div id="error-banner"></div>
+<div id="loading">Loading EHR data...</div>
+<div id="content"></div>
+<div id="not-found"></div>
+
+<script>
+(function() {
+  const CSV_URL = 'https://raw.githubusercontent.com/christopherlogue-boop/se-field-intel/main/ehr-master.csv?cb=' + Date.now();
+
+  const params = new URLSearchParams(window.location.search);
+  const vendorParam = (params.get('vendor') || '').trim();
+
+  if (!vendorParam) {
+    showError('No vendor parameter provided. Use ?vendor=epic, ?vendor=ecw, etc.');
+    document.getElementById('loading').style.display = 'none';
+    return;
+  }
+
+  fetch(CSV_URL)
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then(csv => {
+      document.getElementById('loading').style.display = 'none';
+      const rows = parseCSV(csv);
+      if (rows.length < 2) { showError('CSV is empty or malformed.'); return; }
+      const headers = rows[0];
+      const records = rows.slice(1).map(row => {
+        const obj = {};
+        headers.forEach((h, i) => obj[h.trim()] = (row[i] || '').trim());
+        return obj;
+      });
+
+      const match = findMatch(records, vendorParam);
+      if (match) {
+        renderEHR(match);
+      } else {
+        renderNotFound(records, vendorParam);
+      }
+    })
+    .catch(err => {
+      document.getElementById('loading').style.display = 'none';
+      showError('Failed to load EHR data: ' + err.message);
+    });
+
+  function parseCSV(text) {
+    const rows = [];
+    let current = [];
+    let field = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (i + 1 < text.length && text[i + 1] === '"') {
+            field += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          field += c;
+        }
+      } else {
+        if (c === '"') {
+          inQuotes = true;
+        } else if (c === ',') {
+          current.push(field);
+          field = '';
+        } else if (c === '\n') {
+          current.push(field);
+          field = '';
+          if (current.length > 1 || current[0] !== '') rows.push(current);
+          current = [];
+        } else if (c === '\r') {
+          // skip
+        } else {
+          field += c;
+        }
+      }
+    }
+    if (field || current.length) {
+      current.push(field);
+      if (current.length > 1 || current[0] !== '') rows.push(current);
+    }
+    return rows;
+  }
+
+  function slugify(s) {
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+
+  function findMatch(records, vendor) {
+    const slug = slugify(vendor);
+    const lower = vendor.toLowerCase().replace(/-/g, ' ');
+
+    // Try exact slug match on name first, then aliases
+    for (const r of records) {
+      const name = r['EHR Name'] || '';
+      if (slugify(name) === slug) return r;
+    }
+    for (const r of records) {
+      const aliases = (r['EHR Aliases / Alt Names'] || '').split(',').map(a => a.trim());
+      for (const alias of aliases) {
+        if (slugify(alias) === slug) return r;
+      }
+    }
+    // Partial match on name
+    for (const r of records) {
+      const name = (r['EHR Name'] || '').toLowerCase();
+      if (name.includes(lower) || lower.includes(name.replace(/[^a-z0-9 ]/g, '').trim())) return r;
+    }
+    // Partial match on aliases
+    for (const r of records) {
+      const aliases = (r['EHR Aliases / Alt Names'] || '').split(',').map(a => a.trim().toLowerCase());
+      for (const alias of aliases) {
+        if (alias && (alias.includes(lower) || lower.includes(alias.replace(/[^a-z0-9 ]/g, '').trim()))) return r;
+      }
+    }
+    // Slug partial match
+    for (const r of records) {
+      const nameSlug = slugify(r['EHR Name'] || '');
+      if (nameSlug.includes(slug) || slug.includes(nameSlug)) return r;
+      const aliases = (r['EHR Aliases / Alt Names'] || '').split(',').map(a => a.trim());
+      for (const alias of aliases) {
+        const aliasSlug = slugify(alias);
+        if (aliasSlug && (aliasSlug.includes(slug) || slug.includes(aliasSlug))) return r;
+      }
+    }
+    return null;
+  }
+
+  function showError(msg) {
+    const b = document.getElementById('error-banner');
+    b.textContent = msg;
+    b.classList.add('visible');
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function difficultyBadge(diff) {
+    if (!diff) return '';
+    const d = diff.toLowerCase();
+    let cls = 'badge-grey';
+    if (d === 'easy') cls = 'badge-green';
+    else if (d === 'medium') cls = 'badge-yellow';
+    else if (d === 'hard' || d === 'very hard') cls = 'badge-red';
+    return '<span class="badge ' + cls + '">' + esc(diff) + '</span>';
+  }
+
+  function statusBadge(status) {
+    if (!status) return '';
+    const s = status.toLowerCase();
+    let cls = 'badge-grey';
+    if (s === 'supported') cls = 'badge-green';
+    else if (s === 'conditional') cls = 'badge-yellow';
+    else if (s === 'limited' || s === 'unknown') cls = 'badge-grey';
+    return '<span class="badge ' + cls + '">' + esc(status) + '</span>';
+  }
+
+  function renderFieldMapping(ehrFields, commureFields) {
+    if (!ehrFields && !commureFields) return '<p style="color:#666;font-size:13px;">No field mapping data available for this EHR.</p>';
+    const ehrArr = (ehrFields || '').split('|').map(s => s.trim()).filter(Boolean);
+    const commArr = (commureFields || '').split('|').map(s => s.trim()).filter(Boolean);
+    const len = Math.max(ehrArr.length, commArr.length);
+    if (len === 0) return '<p style="color:#666;font-size:13px;">No field mapping data available for this EHR.</p>';
+    let html = '<table class="field-table"><thead><tr><th>EHR UI Field</th><th>Commure Insights Field</th></tr></thead><tbody>';
+    for (let i = 0; i < len; i++) {
+      html += '<tr><td>' + esc(ehrArr[i] || '—') + '</td><td>' + esc(commArr[i] || '—') + '</td></tr>';
+    }
+    html += '</tbody></table>';
+    return html;
+  }
+
+  function detailItem(label, value, full) {
+    if (!value) value = '—';
+    return '<div class="detail-item' + (full ? ' detail-full' : '') + '"><div class="detail-label">' + esc(label) + '</div><div class="detail-value">' + esc(value) + '</div></div>';
+  }
+
+  function renderEHR(r) {
+    const el = document.getElementById('content');
+    let html = '';
+
+    // Header
+    html += '<div class="ehr-header">';
+    html += '<h2>' + esc(r['EHR Name']) + '</h2>';
+    html += difficultyBadge(r['RCM Difficulty']);
+    html += statusBadge(r['RCM Status']);
+    html += '</div>';
+
+    if (r['EHR Aliases / Alt Names']) {
+      html += '<div class="aliases">Also known as: ' + esc(r['EHR Aliases / Alt Names']) + '</div>';
+    }
+
+    // Field Mapping
+    html += '<div class="section"><div class="section-header">Field Mapping</div><div class="section-body">';
+    html += renderFieldMapping(r['EHR UI Field Names'], r['Commure Insights Field Names']);
+    html += '</div></div>';
+
+    // Demo Patient Anchor
+    html += '<div class="section"><div class="section-header">Demo Patient Anchor</div><div class="section-body">';
+    if (r['Demo Patient Anchor']) {
+      html += '<div class="demo-patient">' + esc(r['Demo Patient Anchor']) + '</div>';
+    } else {
+      html += '<p style="color:#666;font-size:13px;">No demo patient configured.</p>';
+    }
+    html += '</div></div>';
+
+    // RCM Details
+    html += '<div class="section"><div class="section-header">RCM Details</div><div class="section-body"><div class="detail-grid">';
+    html += detailItem('Method', r['RCM Method']);
+    html += detailItem('Min ARR', r['RCM Min ARR']);
+    html += detailItem('Timeline (Best Case)', r['RCM Timeline (Best Case)']);
+    html += detailItem('Timeline (Typical)', r['RCM Timeline (Typical)']);
+    html += detailItem('Notes / Constraints', r['RCM Notes / Constraints'], true);
+    html += '</div></div></div>';
+
+    // Ambient Details
+    html += '<div class="section"><div class="section-header">Ambient Details</div><div class="section-body"><div class="detail-grid">';
+    html += detailItem('Status', r['Ambient Status']);
+    html += detailItem('Writeback Method', r['Ambient Writeback Method']);
+    html += detailItem('Appt Sync Method', r['Ambient Appt Sync Method']);
+    html += detailItem('Appt Sync Notes', r['Ambient Appt Sync Notes'], true);
+    html += detailItem('Client Prerequisites', r['Ambient Client Prerequisites'], true);
+    html += detailItem('Timeline', r['Ambient Timeline']);
+    html += detailItem('Notes', r['Ambient Notes'], true);
+    html += '</div></div></div>';
+
+    // Agents
+    html += '<div class="section"><div class="section-header">Agents</div><div class="section-body"><div class="detail-grid">';
+    html += detailItem('Supported', r['Agents Supported']);
+    html += detailItem('Tier', r['Agents Tier']);
+    html += detailItem('Notes', r['Agents Notes'], true);
+    html += '</div></div></div>';
+
+    // Pro
+    html += '<div class="section"><div class="section-header">Commure Pro</div><div class="section-body"><div class="detail-grid">';
+    html += detailItem('Supported', r['Pro Supported']);
+    html += detailItem('Notes', r['Pro Notes'], true);
+    html += '</div></div></div>';
+
+    // Blocker Signals & Pivots
+    const b1 = r['Blocker Signal 1'];
+    const p1 = r['Pivot Path 1'];
+    const b2 = r['Blocker Signal 2'];
+    const p2 = r['Pivot Path 2'];
+    if (b1 || b2) {
+      html += '<div class="section"><div class="section-header">Blocker Signals &amp; Pivot Paths</div><div class="section-body">';
+      if (b1) {
+        html += '<div class="blocker-card">';
+        html += '<div class="blocker-signal">' + esc(b1) + '</div>';
+        if (p1) { html += '<div class="pivot-label">Pivot Path</div><div class="pivot-path">' + esc(p1) + '</div>'; }
+        html += '</div>';
+      }
+      if (b2) {
+        html += '<div class="blocker-card">';
+        html += '<div class="blocker-signal">' + esc(b2) + '</div>';
+        if (p2) { html += '<div class="pivot-label">Pivot Path</div><div class="pivot-path">' + esc(p2) + '</div>'; }
+        html += '</div>';
+      }
+      html += '</div></div>';
+    }
+
+    // SE Guidance
+    const guidance = r['SE Action Guidance'];
+    const internal = r['SE Internal Notes'];
+    if (guidance || internal) {
+      html += '<div class="section"><div class="section-header">SE Guidance</div><div class="section-body">';
+      if (guidance) {
+        html += '<div class="guidance-box"><div class="guidance-label">Action Guidance</div>' + esc(guidance) + '</div>';
+      }
+      if (internal) {
+        html += '<div class="guidance-box" style="background:#fff5f5;border-left-color:var(--red);"><div class="guidance-label" style="color:var(--red);">Internal Notes</div>' + esc(internal) + '</div>';
+      }
+      html += '</div></div>';
+    }
+
+    // Metadata
+    html += '<div class="section"><div class="section-header">Metadata</div><div class="section-body"><div class="meta-grid">';
+    html += '<div class="meta-item"><div class="detail-label">Source Validated</div><div class="detail-value">' + esc(r['Source Validated'] || '—') + '</div></div>';
+    html += '<div class="meta-item"><div class="detail-label">Validate w/ Engineering</div><div class="detail-value">' + esc(r['Validate w/ Engineering'] || '—') + '</div></div>';
+    html += '<div class="meta-item"><div class="detail-label">Last Updated</div><div class="detail-value">' + esc(r['Last Updated'] || '—') + '</div></div>';
+    html += '<div class="meta-item"><div class="detail-label">Owner</div><div class="detail-value">' + esc(r['Owner'] || '—') + '</div></div>';
+    html += '</div></div></div>';
+
+    el.innerHTML = html;
+    el.classList.add('visible');
+  }
+
+  function renderNotFound(records, vendor) {
+    const el = document.getElementById('not-found');
+    let html = '<h2>EHR Not Found</h2>';
+    html += '<p>No match for <strong>' + esc(vendor) + '</strong>. Select an EHR below:</p>';
+    html += '<ul class="ehr-list">';
+    records.forEach(r => {
+      const name = r['EHR Name'] || '';
+      const status = r['RCM Status'] || '';
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      html += '<li><a href="?vendor=' + encodeURIComponent(slug) + '">' + esc(name) + '<br><span class="ehr-status">' + esc(status) + ' &middot; ' + esc(r['RCM Difficulty'] || '') + '</span></a></li>';
+    });
+    html += '</ul>';
+    el.innerHTML = html;
+    el.classList.add('visible');
+  }
+})();
+</script>
+</body>
+</html>
