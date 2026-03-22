@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SE TechGuide | Commure</title>
+<style>
+:root {
+  --graphite: #010F0C;
+  --blue-litmus: #335AF1;
+  --velocity: #A8F4FF;
+  --glacier: #FFFFFF;
+  --stealth-grey: #D9D9D9;
+  --yellow-flag: #F5A623;
+  --green: #2ECC71;
+  --red: #E74C3C;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Montserrat', system-ui, -apple-system, sans-serif; background: #F5F6F8; color: var(--graphite); font-size: 14px; line-height: 1.5; }
+h1,h2,h3,h4 { font-family: 'Syne', system-ui, sans-serif; }
+
+/* Auth gate */
+#auth-gate { position:fixed; inset:0; background:var(--graphite); display:flex; align-items:center; justify-content:center; z-index:9999; }
+#auth-gate.hidden { display:none; }
+#auth-box { background:var(--glacier); padding:40px; border-radius:8px; text-align:center; max-width:360px; width:90%; }
+#auth-box h2 { margin-bottom:8px; color:var(--graphite); font-size:20px; }
+#auth-box p { color:#666; margin-bottom:20px; font-size:13px; }
+#auth-box input { width:100%; padding:10px 14px; border:1px solid var(--stealth-grey); border-radius:6px; font-size:14px; margin-bottom:12px; }
+#auth-box button { width:100%; padding:10px; background:var(--blue-litmus); color:var(--glacier); border:none; border-radius:6px; font-size:14px; cursor:pointer; font-weight:600; }
+#auth-box button:hover { opacity:0.9; }
+#auth-error { color:var(--red); font-size:12px; margin-top:8px; display:none; }
+
+/* Main app */
+#app { display:none; }
+#app.visible { display:block; }
+
+/* Header */
+header { background:var(--graphite); color:var(--glacier); padding:12px 24px; display:flex; align-items:center; justify-content:space-between; }
+header h1 { font-size:18px; font-weight:700; }
+header .subtitle { font-size:12px; color:var(--velocity); margin-left:12px; }
+
+/* Error banner */
+#error-banner { background:var(--yellow-flag); color:var(--graphite); padding:8px 24px; font-size:13px; font-weight:600; display:none; }
+#error-banner.visible { display:block; }
+
+/* Tabs */
+.tab-bar { display:flex; gap:0; background:var(--glacier); border-bottom:2px solid var(--stealth-grey); padding:0 24px; }
+.tab-bar button { padding:10px 20px; border:none; background:none; font-size:14px; font-weight:600; color:#666; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; }
+.tab-bar button.active { color:var(--blue-litmus); border-bottom-color:var(--blue-litmus); }
+
+/* Input bar */
+.input-bar { background:var(--glacier); padding:16px 24px; border-bottom:1px solid var(--stealth-grey); display:flex; flex-wrap:wrap; gap:20px; align-items:flex-end; }
+.input-group { display:flex; flex-direction:column; gap:4px; }
+.input-group label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#666; }
+
+/* Product pills */
+.pill-group { display:flex; gap:6px; }
+.pill { padding:6px 14px; border:1px solid var(--stealth-grey); border-radius:20px; font-size:13px; cursor:pointer; background:var(--glacier); color:#666; font-weight:600; transition:all 0.15s; user-select:none; }
+.pill.active { background:var(--blue-litmus); color:var(--glacier); border-color:var(--blue-litmus); }
+
+/* Audience pills */
+.audience-group { display:flex; gap:6px; }
+.audience-pill { padding:6px 14px; border:1px solid var(--stealth-grey); border-radius:20px; font-size:13px; cursor:pointer; background:var(--glacier); color:#666; font-weight:600; transition:all 0.15s; user-select:none; }
+.audience-pill.active { background:var(--graphite); color:var(--glacier); border-color:var(--graphite); }
+
+/* EHR typeahead */
+.ehr-search-wrap { position:relative; min-width:260px; }
+.ehr-search-wrap input { width:100%; padding:7px 12px; border:1px solid var(--stealth-grey); border-radius:6px; font-size:13px; }
+.ehr-dropdown { position:absolute; top:100%; left:0; right:0; background:var(--glacier); border:1px solid var(--stealth-grey); border-top:none; border-radius:0 0 6px 6px; max-height:240px; overflow-y:auto; z-index:100; display:none; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+.ehr-dropdown.open { display:block; }
+.ehr-option { padding:8px 12px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+.ehr-option:hover { background:#f0f2f5; }
+.ehr-option .ehr-name { font-weight:600; font-size:13px; }
+.ehr-option .ehr-tier { font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; }
+.tier-easy { background:#D5F5E3; color:#1E8449; }
+.tier-medium { background:#FCF3CF; color:#B7950B; }
+.tier-hard { background:#FADBD8; color:#C0392B; }
+.tier-very-hard { background:#E8DAEF; color:#7D3C98; }
+
+/* Content panels */
+.tab-content { display:none; padding:24px; }
+.tab-content.active { display:block; }
+
+/* Sections */
+.section { background:var(--glacier); border-radius:8px; padding:20px; margin-bottom:16px; border:1px solid #E8E9EB; }
+.section h3 { font-size:15px; margin-bottom:12px; color:var(--graphite); }
+.section h4 { font-size:13px; margin-bottom:8px; color:var(--blue-litmus); font-weight:700; }
+
+/* Detail rows */
+.detail-row { display:flex; gap:8px; margin-bottom:6px; font-size:13px; }
+.detail-label { font-weight:700; min-width:160px; color:#444; flex-shrink:0; }
+.detail-value { color:var(--graphite); }
+
+/* Status badges */
+.badge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:11px; font-weight:700; text-transform:uppercase; }
+.badge-confirmed { background:#D5F5E3; color:#1E8449; }
+.badge-conditional { background:#FCF3CF; color:#B7950B; }
+.badge-unknown { background:#EAECEE; color:#666; }
+.badge-limited { background:#FADBD8; color:#C0392B; }
+
+/* Yellow flag */
+.yellow-flag { background:#FEF9E7; border-left:3px solid var(--yellow-flag); padding:8px 12px; font-size:12px; color:#7D6608; margin-top:8px; border-radius:0 4px 4px 0; }
+
+/* Pinned callout */
+.pinned-callout { background:#EBF0FE; border-left:3px solid var(--blue-litmus); padding:10px 14px; font-size:13px; color:var(--graphite); margin-bottom:16px; border-radius:0 6px 6px 0; font-weight:600; }
+
+/* Competitor tags */
+.comp-tag { display:inline-block; padding:2px 10px; border-radius:10px; font-size:11px; font-weight:700; margin-right:4px; margin-bottom:4px; }
+.comp-confirmed { background:#D5F5E3; color:#1E8449; }
+.comp-unknown { background:#EAECEE; color:#666; }
+
+/* Expandable cards */
+.expand-card { border:1px solid #E8E9EB; border-radius:6px; margin-top:8px; overflow:hidden; }
+.expand-header { padding:10px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:600; background:#FAFAFA; }
+.expand-header:hover { background:#F0F2F5; }
+.expand-arrow { transition:transform 0.2s; font-size:10px; }
+.expand-card.open .expand-arrow { transform:rotate(90deg); }
+.expand-body { padding:0 14px; max-height:0; overflow:hidden; transition:max-height 0.2s; }
+.expand-card.open .expand-body { max-height:400px; padding:10px 14px; }
+.counter-item { font-size:12px; margin-bottom:4px; padding-left:12px; position:relative; }
+.counter-item::before { content:"\2192"; position:absolute; left:0; color:var(--blue-litmus); }
+
+/* Demo path */
+.demo-path { background:var(--glacier); border-radius:8px; padding:20px; margin-bottom:16px; border:1px solid #E8E9EB; }
+.demo-path h3 { font-size:15px; margin-bottom:4px; }
+.demo-path .path-steps { font-size:13px; margin:8px 0; }
+.demo-path .path-steps a { color:var(--blue-litmus); text-decoration:none; font-weight:600; }
+.demo-path .path-steps a:hover { text-decoration:underline; }
+.demo-path .coaching { font-size:12px; color:#555; font-style:italic; margin-top:6px; border-left:2px solid var(--velocity); padding-left:10px; }
+
+/* Competitive intel tab */
+.matrix-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:12px; }
+.matrix-table th, .matrix-table td { padding:8px 10px; border:1px solid #E8E9EB; text-align:left; }
+.matrix-table th { background:#F5F6F8; font-weight:700; font-size:11px; text-transform:uppercase; }
+.matrix-table td { vertical-align:top; }
+
+/* Competitor card in intel tab */
+.comp-ref-card { background:var(--glacier); border:1px solid #E8E9EB; border-radius:8px; padding:16px; margin-bottom:12px; }
+.comp-ref-card h4 { font-size:14px; margin-bottom:8px; }
+.comp-ref-card .watch-out { background:#FEF9E7; padding:8px 12px; border-radius:4px; font-size:12px; margin-bottom:8px; }
+.comp-ref-card .watch-out strong { color:#B7950B; }
+
+/* Footer note */
+.intel-date { font-size:11px; color:#999; margin-top:12px; }
+
+/* Empty state */
+.empty-state { text-align:center; padding:60px 20px; color:#999; }
+.empty-state p { font-size:14px; }
+
+/* Link */
+a.field-link { color:var(--blue-litmus); text-decoration:none; font-size:13px; font-weight:600; }
+a.field-link:hover { text-decoration:underline; }
+
+/* No select text for pills */
+.pill, .audience-pill { -webkit-user-select:none; }
+
+@media (max-width:768px) {
+  .input-bar { flex-direction:column; gap:12px; }
+  .detail-row { flex-direction:column; gap:2px; }
+  .detail-label { min-width:auto; }
+}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- Auth Gate -->
+<div id="auth-gate">
+  <div id="auth-box">
+    <h2>SE TechGuide</h2>
+    <p>Commure internal tool. Enter password to continue.</p>
+    <input type="password" id="auth-input" placeholder="Password" autocomplete="off">
+    <button onclick="checkAuth()">Enter</button>
+    <div id="auth-error">Incorrect password.</div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <header>
+    <div style="display:flex;align-items:baseline;">
+      <h1>SE TechGuide</h1>
+      <span class="subtitle">Live Call Reference</span>
+    </div>
+  </header>
+
+  <div id="error-banner">Offline mode — data may be stale. Check your connection.</div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="active" onclick="switchTab('callprep')">Call Prep</button>
+    <button onclick="switchTab('intel')">Competitive Intel</button>
+  </div>
+
+  <!-- Input Bar -->
+  <div class="input-bar">
+    <div class="input-group">
+      <label>Products in Scope</label>
+      <div class="pill-group">
+        <div class="pill" data-product="rcm" onclick="togglePill(this)">RCM</div>
+        <div class="pill" data-product="ambient" onclick="togglePill(this)">Ambient AI</div>
+        <div class="pill" data-product="pxp" onclick="togglePill(this)">PXP</div>
+      </div>
+    </div>
+    <div class="input-group">
+      <label>EHR</label>
+      <div class="ehr-search-wrap">
+        <input type="text" id="ehr-search" placeholder="Search EHR..." autocomplete="off" oninput="filterEHR()" onfocus="filterEHR()">
+        <div class="ehr-dropdown" id="ehr-dropdown"></div>
+      </div>
+    </div>
+    <div class="input-group">
+      <label>Audience</label>
+      <div class="audience-group">
+        <div class="audience-pill" data-audience="CXO/CFO" onclick="selectAudience(this)">CXO/CFO</div>
+        <div class="audience-pill" data-audience="RCM Operations" onclick="selectAudience(this)">RCM Operations</div>
+        <div class="audience-pill" data-audience="IT/CIO" onclick="selectAudience(this)">IT/CIO</div>
+        <div class="audience-pill active" data-audience="Mixed Room" onclick="selectAudience(this)">Mixed Room</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Call Prep Tab -->
+  <div class="tab-content active" id="tab-callprep">
+    <div id="main-empty" class="empty-state">
+      <p>Select an EHR and at least one product to populate the call prep guide.</p>
+    </div>
+    <div id="main-content" style="display:none;">
+
+      <!-- Section 1: EHR Integration Details -->
+      <div class="section" id="sec-ehr-details">
+        <h3>EHR Integration Details</h3>
+        <div id="ehr-details-body"></div>
+      </div>
+
+      <!-- Section 2: Product Fit -->
+      <div class="section" id="sec-product-fit" style="display:none;">
+        <h3>Product Fit on This EHR</h3>
+        <div id="product-fit-body"></div>
+      </div>
+
+      <!-- Section 3: Competitive Exposure -->
+      <div class="section" id="sec-comp-exposure">
+        <h3>Competitive Exposure on This EHR</h3>
+        <div id="comp-exposure-body"></div>
+      </div>
+
+      <!-- RCM Demo Click Path -->
+      <div class="section" id="sec-demo-path" style="display:none;">
+        <h3>RCM Demo Click Path</h3>
+        <div id="demo-path-body"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Competitive Intel Tab -->
+  <div class="tab-content" id="tab-intel">
+    <div id="intel-body">
+      <p style="color:#999;">Loading competitive intel...</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- AUTH ----
+const PASSWORD_HASH = '5e2948b98e38040f3b30e1ca2540091e4bdd94df86f3e3be5a93dca52049f1e3'; // commure2026
+const COOKIE_NAME = 'setg_auth';
+
+async function sha256(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function getCookie(name) {
+  const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return m ? m[1] : null;
+}
+
+function setCookie(name, val, days) {
+  const d = new Date(); d.setTime(d.getTime() + days * 86400000);
+  document.cookie = name + '=' + val + ';expires=' + d.toUTCString() + ';path=/;SameSite=Strict';
+}
+
+async function checkAuth() {
+  const input = document.getElementById('auth-input').value;
+  // Check against env-injected hash or fallback
+  const hash = await sha256(input);
+  const target = window.__PASSWORD_HASH || PASSWORD_HASH;
+  if (hash === target) {
+    setCookie(COOKIE_NAME, '1', 7);
+    document.getElementById('auth-gate').classList.add('hidden');
+    document.getElementById('app').classList.add('visible');
+  } else {
+    document.getElementById('auth-error').style.display = 'block';
+  }
+}
+
+document.getElementById('auth-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkAuth(); });
+
+// Check cookie on load
+if (getCookie(COOKIE_NAME) === '1') {
+  document.getElementById('auth-gate').classList.add('hidden');
+  document.getElementById('app').classList.add('visible');
+}
+
+// ---- DATA ----
+let ehrData = [];
+let compData = null;
+let selectedEHR = null;
+let selectedProducts = new Set();
+let selectedAudience = 'Mixed Room';
+
+const CSV_URL = 'https://raw.githubusercontent.com/christopherlogue-boop/se-field-intel/main/ehr-master.csv?t=' + Date.now();
+const JSON_URL = 'https://raw.githubusercontent.com/christopherlogue-boop/se-field-intel/main/competitive-ehr-ref.json?t=' + Date.now();
+
+async function loadData() {
+  let errors = [];
+  try {
+    const csvResp = await fetch(CSV_URL);
+    if (!csvResp.ok) throw new Error('CSV fetch failed');
+    const csvText = await csvResp.text();
+    ehrData = parseCSV(csvText);
+  } catch(e) { errors.push('EHR CSV'); }
+
+  try {
+    const jsonResp = await fetch(JSON_URL);
+    if (!jsonResp.ok) throw new Error('JSON fetch failed');
+    compData = await jsonResp.json();
+  } catch(e) { errors.push('Competitive JSON'); }
+
+  if (errors.length > 0) {
+    const banner = document.getElementById('error-banner');
+    banner.textContent = 'Offline mode — data may be stale. Check your connection. Failed: ' + errors.join(', ');
+    banner.classList.add('visible');
+  }
+
+  renderIntelTab();
+}
+
+function parseCSV(text) {
+  const lines = text.split('\n');
+  if (lines.length < 2) return [];
+  // Parse header
+  const headers = parseCSVLine(lines[0]);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const vals = parseCSVLine(line);
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h.trim()] = (vals[idx] || '').trim(); });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') { current += '"'; i++; }
+        else { inQuotes = false; }
+      } else { current += c; }
+    } else {
+      if (c === '"') { inQuotes = true; }
+      else if (c === ',') { result.push(current); current = ''; }
+      else { current += c; }
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+// ---- EHR SEARCH ----
+function filterEHR() {
+  const q = document.getElementById('ehr-search').value.toLowerCase();
+  const dd = document.getElementById('ehr-dropdown');
+  dd.innerHTML = '';
+  const matches = ehrData.filter(e => {
+    const name = (e['EHR Name'] || '').toLowerCase();
+    const aliases = (e['EHR Aliases / Alt Names'] || '').toLowerCase();
+    return name.includes(q) || aliases.includes(q);
+  });
+  if (matches.length === 0) { dd.classList.remove('open'); return; }
+  matches.forEach(ehr => {
+    const div = document.createElement('div');
+    div.className = 'ehr-option';
+    const diff = (ehr['RCM Difficulty'] || 'Unknown').trim();
+    const tierClass = diff === 'Easy' ? 'tier-easy' : diff === 'Medium' ? 'tier-medium' : diff === 'Hard' ? 'tier-hard' : diff === 'Very Hard' ? 'tier-very-hard' : '';
+    div.innerHTML = '<span class="ehr-name">' + escHTML(ehr['EHR Name']) + '</span><span class="ehr-tier ' + tierClass + '">' + escHTML(diff) + '</span>';
+    div.addEventListener('click', () => selectEHR(ehr));
+    dd.appendChild(div);
+  });
+  dd.classList.add('open');
+}
+
+function selectEHR(ehr) {
+  selectedEHR = ehr;
+  document.getElementById('ehr-search').value = ehr['EHR Name'];
+  document.getElementById('ehr-dropdown').classList.remove('open');
+  renderMain();
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.ehr-search-wrap')) {
+    document.getElementById('ehr-dropdown').classList.remove('open');
+  }
+});
+
+// ---- PILLS ----
+function togglePill(el) {
+  const prod = el.dataset.product;
+  if (el.classList.contains('active')) {
+    el.classList.remove('active');
+    selectedProducts.delete(prod);
+  } else {
+    el.classList.add('active');
+    selectedProducts.add(prod);
+  }
+  renderMain();
+}
+
+function selectAudience(el) {
+  document.querySelectorAll('.audience-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  selectedAudience = el.dataset.audience;
+  renderMain();
+}
+
+// ---- TABS ----
+function switchTab(tab) {
+  document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  if (tab === 'callprep') {
+    document.querySelector('.tab-bar button:nth-child(1)').classList.add('active');
+    document.getElementById('tab-callprep').classList.add('active');
+  } else {
+    document.querySelector('.tab-bar button:nth-child(2)').classList.add('active');
+    document.getElementById('tab-intel').classList.add('active');
+  }
+}
+
+// ---- RENDER MAIN ----
+function renderMain() {
+  if (!selectedEHR) {
+    document.getElementById('main-empty').style.display = '';
+    document.getElementById('main-content').style.display = 'none';
+    return;
+  }
+  document.getElementById('main-empty').style.display = 'none';
+  document.getElementById('main-content').style.display = '';
+
+  renderEHRDetails();
+  renderProductFit();
+  renderCompExposure();
+  renderDemoPath();
+}
+
+function renderEHRDetails() {
+  const ehr = selectedEHR;
+  const ehrName = ehr['EHR Name'] || '';
+
+  // Kill-shot qualifier from JSON
+  let killShot = '';
+  if (compData && compData.ehrTechnicalReference) {
+    const keyMap = { 'Epic': 'epic', 'MEDITECH Expanse V2': 'meditech', 'MEDITECH Expanse': 'meditech', 'MEDITECH Magic': 'meditech', 'MEDITECH C/S': 'meditech', 'eClinicalWorks': 'eclinicalworks', 'athenahealth': 'athenahealth' };
+    const jsonKey = keyMap[ehrName];
+    if (jsonKey && compData.ehrTechnicalReference[jsonKey]) {
+      killShot = compData.ehrTechnicalReference[jsonKey].killShotQualifier || '';
+    }
+  }
+  // Fallback kill-shots for EHRs not in JSON
+  if (!killShot) {
+    const fallbacks = {
+      'Epic': 'Epic version 2018+?',
+      'MEDITECH Expanse V2': 'Expanse or Magic?',
+      'MEDITECH Expanse': 'Expanse or Magic?',
+      'MEDITECH Magic': 'Expanse or Magic?',
+      'MEDITECH C/S': 'Expanse or Magic?',
+      'eClinicalWorks': 'Cloud-hosted or on-prem?',
+      'athenahealth': '2FA disabled on service account?',
+      'Elation': 'ElationPM paired or separate PM?',
+      'NextGen Office': 'NextGen Office or Enterprise?',
+      'Office Ally': 'Which version of Office Ally?',
+      'Cerner / Oracle Health': 'Can you share 837 batch files?'
+    };
+    killShot = fallbacks[ehrName] || '';
+  }
+
+  // Go-live risks
+  const risks = [];
+  if (ehr['Blocker Signal 1']) risks.push(ehr['Blocker Signal 1']);
+  if (ehr['Blocker Signal 2']) risks.push(ehr['Blocker Signal 2']);
+
+  // Timelines
+  const scribeTimeline = ehr['Ambient Timeline'] || ehr['RCM Timeline (Best Case)'] || 'Validate with engineering';
+  const rcmTimeline = ehr['RCM Timeline (Typical)'] || 'Validate with engineering';
+
+  // EHR vendor slug for field mapping link
+  const slug = ehrName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+
+  let html = '';
+  html += detailRow('Integration Method', ehr['RCM Method'] || 'Not documented');
+  if (killShot) {
+    html += detailRow('Kill-Shot Qualifier', '<strong style="color:var(--red);">' + escHTML(killShot) + '</strong>');
+  }
+  html += detailRow('Scribe Timeline', escHTML(scribeTimeline));
+  html += detailRow('With RCM', escHTML(rcmTimeline));
+  html += detailRow('Full Stack', escHTML(ehr['RCM Timeline (Typical)'] || 'Validate'));
+
+  if (risks.length > 0) {
+    html += '<h4 style="margin-top:12px;">Top Go-Live Risks</h4>';
+    risks.forEach((r, i) => {
+      html += '<div style="font-size:13px;margin-bottom:4px;">' + (i + 1) + '. ' + escHTML(r) + '</div>';
+      const pivot = ehr['Pivot Path ' + (i + 1)];
+      if (pivot) {
+        html += '<div style="font-size:12px;color:#555;margin-left:16px;margin-bottom:6px;">Pivot: ' + escHTML(pivot) + '</div>';
+      }
+    });
+  }
+
+  html += '<div style="margin-top:12px;"><a class="field-link" href="/ehr-integration.html?vendor=' + encodeURIComponent(slug) + '" target="_blank">View field mapping &rarr;</a></div>';
+
+  document.getElementById('ehr-details-body').innerHTML = html;
+}
+
+function renderProductFit() {
+  const sec = document.getElementById('sec-product-fit');
+  const body = document.getElementById('product-fit-body');
+  if (selectedProducts.size === 0) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  const ehr = selectedEHR;
+  const ehrName = ehr['EHR Name'] || '';
+
+  let html = '';
+
+  // Product status mapping
+  const productMap = {
+    'rcm': { csvField: 'RCM Status', label: 'RCM Platform' },
+    'ambient': { csvField: 'Ambient Status', label: 'Ambient AI' },
+    'pxp': { csvField: 'Pro Supported', label: 'PXP' } // PXP mapped to what's available
+  };
+
+  // Integration notes from JSON
+  const ehrJsonNotes = getEHRJsonNotes(ehrName);
+
+  selectedProducts.forEach(prod => {
+    const info = productMap[prod];
+    if (!info) return;
+    const status = ehr[info.csvField] || 'Unknown';
+    let badgeClass = 'badge-unknown';
+    let statusLabel = 'Unknown';
+    if (status === 'Supported' || status === '✅ Yes' || status === '✅ Strong candidate') {
+      badgeClass = 'badge-confirmed'; statusLabel = 'Confirmed';
+    } else if (status === 'Conditional' || status === '⚠ Caution' || status === 'Limited') {
+      badgeClass = 'badge-conditional'; statusLabel = 'Conditional';
+    } else if (status === '❌ No') {
+      badgeClass = 'badge-unknown'; statusLabel = 'Not Supported';
+    }
+
+    let note = '';
+    if (prod === 'ambient' && ehrJsonNotes.ambientNote) note = ehrJsonNotes.ambientNote;
+    else if (prod === 'rcm' && ehrJsonNotes.rcmNote) note = ehrJsonNotes.rcmNote;
+    else if (prod === 'pxp') note = 'PXP availability: verify with product team for this EHR.';
+
+    // Use ambient-specific fields from CSV
+    if (prod === 'ambient') {
+      const wb = ehr['Ambient Writeback Method'] || '';
+      if (wb) note = wb;
+    }
+    if (prod === 'rcm') {
+      const rm = ehr['RCM Method'] || '';
+      if (rm) note = rm;
+    }
+
+    html += '<div style="margin-bottom:12px;">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><strong>' + escHTML(info.label) + '</strong> <span class="badge ' + badgeClass + '">' + statusLabel + '</span></div>';
+    if (note) html += '<div style="font-size:12px;color:#555;">' + escHTML(note) + '</div>';
+    if (statusLabel !== 'Confirmed') {
+      html += '<div class="yellow-flag">Confirm with engineering before scoping.</div>';
+    }
+    html += '</div>';
+  });
+
+  body.innerHTML = html;
+}
+
+function getEHRJsonNotes(ehrName) {
+  if (!compData || !compData.ehrTechnicalReference) return {};
+  const keyMap = { 'Epic': 'epic', 'MEDITECH Expanse V2': 'meditech', 'MEDITECH Expanse': 'meditech', 'MEDITECH Magic': 'meditech', 'MEDITECH C/S': 'meditech', 'eClinicalWorks': 'eclinicalworks', 'athenahealth': 'athenahealth', 'Cerner / Oracle Health': 'epic' };
+  const key = keyMap[ehrName];
+  if (!key || !compData.ehrTechnicalReference[key]) return {};
+  const ref = compData.ehrTechnicalReference[key];
+  return {
+    ambientNote: ref.noteWriteback || '',
+    rcmNote: ref.rcmMethod || ''
+  };
+}
+
+function renderCompExposure() {
+  const body = document.getElementById('comp-exposure-body');
+  if (!compData || !selectedEHR) { body.innerHTML = '<p style="color:#999;">No competitive data loaded.</p>'; return; }
+
+  const ehrName = selectedEHR['EHR Name'] || '';
+  const ehrKey = ehrName.toLowerCase().replace(/[^a-z]/g, '');
+
+  // Key mapping for competitor ehrCoverage
+  const coverageKeyMap = {
+    'epic': 'epic',
+    'meditechexpansev2': 'meditech',
+    'meditechexpanse': 'meditech',
+    'meditechmagic': 'meditech',
+    'meditechcs': 'meditech',
+    'eclinicalworks': 'ecw',
+    'athenahealth': 'athenahealth',
+    'cerneroraclehealth': 'cerner'
+  };
+  const covKey = coverageKeyMap[ehrKey] || '';
+
+  let html = '';
+  html += '<div class="pinned-callout">Competitors use "coding" and "revenue" language — none have confirmed RCM.</div>';
+
+  if (compData.competitors) {
+    compData.competitors.forEach(comp => {
+      const coverage = comp.ehrCoverage ? (comp.ehrCoverage[covKey] || 'unknown') : 'unknown';
+      const isConfirmed = coverage === 'confirmed' || (typeof coverage === 'string' && coverage.startsWith('confirmed'));
+      const tagClass = isConfirmed ? 'comp-confirmed' : 'comp-unknown';
+      const tagLabel = isConfirmed ? 'Confirmed' : 'Unknown';
+
+      html += '<div style="margin-bottom:8px;">';
+      html += '<span class="comp-tag ' + tagClass + '">' + tagLabel + '</span> <strong style="font-size:13px;">' + escHTML(comp.name) + '</strong>';
+
+      if (isConfirmed && (comp.watchOutFor || (comp.commureCounters && comp.commureCounters.length > 0))) {
+        html += '<div class="expand-card" onclick="this.classList.toggle(\'open\')">';
+        html += '<div class="expand-header">';
+        html += '<span>Intel details</span><span class="expand-arrow">&#9654;</span>';
+        html += '</div>';
+        html += '<div class="expand-body">';
+        if (comp.watchOutFor) {
+          html += '<div style="font-size:12px;margin-bottom:8px;"><strong>Watch out:</strong> ' + escHTML(comp.watchOutFor) + '</div>';
+        }
+        if (comp.commureCounters && comp.commureCounters.length > 0) {
+          html += '<div style="font-size:12px;margin-bottom:4px;"><strong>Counters:</strong></div>';
+          comp.commureCounters.slice(0, 2).forEach(c => {
+            html += '<div class="counter-item">' + escHTML(c) + '</div>';
+          });
+        }
+        html += '</div></div>';
+      }
+      html += '</div>';
+    });
+  }
+
+  // EHR native threats
+  if (compData.ehrNativeThreats) {
+    const relevant = compData.ehrNativeThreats.filter(t => {
+      const threatEhr = (t.ehr || '').toLowerCase();
+      return ehrName.toLowerCase().includes(threatEhr) || threatEhr.includes(ehrName.toLowerCase().split(' ')[0]);
+    });
+    if (relevant.length > 0) {
+      html += '<h4 style="margin-top:16px;">EHR-Native Threats</h4>';
+      relevant.forEach(t => {
+        html += '<div style="font-size:12px;margin-top:6px;"><strong>' + escHTML(t.name) + '</strong>';
+        if (t.threatLevel) html += ' <span class="badge ' + (t.threatLevel === 'high' ? 'badge-conditional' : 'badge-unknown') + '">' + escHTML(t.threatLevel) + '</span>';
+        html += '<br>' + escHTML(t.details || t.status || '') + '</div>';
+      });
+    }
+  }
+
+  html += '<div class="intel-date">Intel compiled: ' + escHTML(compData.meta ? compData.meta.lastCompiled : 'unknown') + '</div>';
+  body.innerHTML = html;
+}
+
+// ---- DEMO PATH ----
+const DEMO_BASE = 'https://demo.insights.athelas.com';
+const DEMO_URLS = {
+  'Overview': '/overall',
+  'Performance Analysis': '/performance_analysis',
+  'Denials Analysis': '/v2/payment/denials-analysis',
+  'Denials Worklist': '/v3/denials',
+  'Billing Rules Engine': '/v2/rules-engine',
+  'Claims': '/claims',
+  'Claim Details': '/v3/claim_level_view',
+  'Patient Statements': '/v2/pr-statements',
+  'Bulk Resubmission': '/v2/bulk-claim-resubmit'
+};
+
+const DEMO_PATHS = {
+  'CXO/CFO': {
+    steps: ['Overview', 'Performance Analysis', 'Denials Analysis', 'Patient Statements'],
+    coaching: 'Lead with the AR trend on Overview. Skip claim-level detail. Close on the patient collections story.'
+  },
+  'RCM Operations': {
+    steps: ['Performance Analysis', 'Denials Worklist', 'Billing Rules Engine', 'Claim Details', 'Bulk Resubmission'],
+    coaching: 'These buyers want to see the workflow, not just numbers. Go deep on denials and rules.'
+  },
+  'IT/CIO': {
+    steps: ['Overview', 'Claims', 'Claim Details'],
+    coaching: 'IT cares about data integrity. Show the data is real and moving. Keep it short — their questions are about integration, not the UI.'
+  },
+  'Mixed Room': {
+    steps: ['Overview', 'Denials Analysis', 'Billing Rules Engine', 'Patient Statements'],
+    coaching: 'Hit something for everyone. Don\'t go deep on any one section.'
+  }
+};
+
+function renderDemoPath() {
+  const sec = document.getElementById('sec-demo-path');
+  if (!selectedProducts.has('rcm')) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+
+  const path = DEMO_PATHS[selectedAudience];
+  if (!path) return;
+
+  let html = '<div class="demo-path">';
+  html += '<h4>Suggested demo path — ' + escHTML(selectedAudience) + ':</h4>';
+  html += '<div class="path-steps">';
+  html += path.steps.map(s => {
+    const url = DEMO_BASE + (DEMO_URLS[s] || '');
+    return '<a href="' + url + '" target="_blank">' + escHTML(s) + '</a>';
+  }).join(' &rarr; ');
+  html += '</div>';
+  html += '<div class="coaching">' + escHTML(path.coaching) + '</div>';
+  html += '</div>';
+
+  document.getElementById('demo-path-body').innerHTML = html;
+}
+
+// ---- COMPETITIVE INTEL TAB ----
+function renderIntelTab() {
+  const body = document.getElementById('intel-body');
+  if (!compData) {
+    body.innerHTML = '<div style="background:var(--yellow-flag);padding:12px;border-radius:6px;font-weight:600;">Running in offline mode — intel may be stale.</div>';
+    return;
+  }
+
+  let html = '';
+
+  // Pinned callout
+  html += '<div class="pinned-callout" style="margin-bottom:16px;">Coding-aware documentation ≠ RCM. Competitors use "coding" and "revenue" language — none have confirmed RCM platform capabilities.</div>';
+
+  html += '<div class="intel-date" style="margin-bottom:16px;">Intel compiled: ' + escHTML(compData.meta.lastCompiled) + ' | Sources: ' + escHTML(compData.meta.sources.join(', ')) + '</div>';
+
+  // Coverage matrix
+  html += '<div class="section"><h3>Competitor × EHR Coverage Matrix</h3>';
+  html += '<table class="matrix-table"><thead><tr><th>Competitor</th><th>Epic</th><th>MEDITECH</th><th>eCW</th><th>athena</th><th>Cerner</th><th>RCM?</th><th>PXP?</th></tr></thead><tbody>';
+
+  // Commure row
+  html += '<tr style="background:#EBF0FE;font-weight:600;"><td>Commure</td>';
+  html += '<td><span class="badge badge-conditional">Conditional</span></td>';
+  html += '<td><span class="badge badge-confirmed">Confirmed</span></td>';
+  html += '<td><span class="badge badge-confirmed">Confirmed</span></td>';
+  html += '<td><span class="badge badge-confirmed">Confirmed</span></td>';
+  html += '<td><span class="badge badge-confirmed">Confirmed</span></td>';
+  html += '<td><span class="badge badge-confirmed">Yes</span></td>';
+  html += '<td><span class="badge badge-confirmed">Yes</span></td>';
+  html += '</tr>';
+
+  if (compData.competitors) {
+    compData.competitors.forEach(comp => {
+      html += '<tr><td><strong>' + escHTML(comp.name) + '</strong></td>';
+      ['epic', 'meditech', 'ecw', 'athenahealth', 'cerner'].forEach(ehr => {
+        const val = comp.ehrCoverage ? (comp.ehrCoverage[ehr] || 'unknown') : 'unknown';
+        const isConf = typeof val === 'string' && val.startsWith('confirmed');
+        html += '<td><span class="badge ' + (isConf ? 'badge-confirmed' : 'badge-unknown') + '">' + (isConf ? 'Confirmed' : 'Unknown') + '</span></td>';
+      });
+      html += '<td><span class="badge ' + (comp.hasRCM ? 'badge-confirmed' : 'badge-unknown') + '">' + (comp.hasRCM ? 'Yes' : 'No') + '</span></td>';
+      html += '<td><span class="badge ' + (comp.hasPXP ? 'badge-confirmed' : 'badge-unknown') + '">' + (comp.hasPXP ? 'Yes' : 'No') + '</span></td>';
+      html += '</tr>';
+    });
+  }
+  html += '</tbody></table></div>';
+
+  // Competitor reference cards
+  html += '<h3 style="margin:20px 0 12px;">Competitor Quick Reference</h3>';
+  if (compData.competitors) {
+    compData.competitors.forEach(comp => {
+      html += '<div class="comp-ref-card">';
+      html += '<h4>' + escHTML(comp.name) + '</h4>';
+      if (comp.watchOutFor) {
+        html += '<div class="watch-out"><strong>Watch out:</strong> ' + escHTML(comp.watchOutFor) + '</div>';
+      }
+      if (comp.commureCounters && comp.commureCounters.length > 0) {
+        html += '<div style="font-size:12px;margin-bottom:8px;"><strong>Top Commure Counters:</strong></div>';
+        comp.commureCounters.slice(0, 2).forEach(c => {
+          html += '<div class="counter-item">' + escHTML(c) + '</div>';
+        });
+      }
+      if (comp.strengths && comp.strengths.length > 0) {
+        html += '<div style="margin-top:8px;"><div class="expand-card" onclick="this.classList.toggle(\'open\')">';
+        html += '<div class="expand-header"><span>Strengths & Weaknesses</span><span class="expand-arrow">&#9654;</span></div>';
+        html += '<div class="expand-body">';
+        html += '<div style="font-size:12px;"><strong>Strengths:</strong><ul style="margin:4px 0 8px 16px;">';
+        comp.strengths.forEach(s => { html += '<li>' + escHTML(s) + '</li>'; });
+        html += '</ul></div>';
+        if (comp.weaknesses) {
+          html += '<div style="font-size:12px;"><strong>Weaknesses:</strong><ul style="margin:4px 0 0 16px;">';
+          comp.weaknesses.forEach(w => { html += '<li>' + escHTML(w) + '</li>'; });
+          html += '</ul></div>';
+        }
+        html += '</div></div></div>';
+      }
+      html += '</div>';
+    });
+  }
+
+  // EHR native threats
+  if (compData.ehrNativeThreats) {
+    html += '<h3 style="margin:20px 0 12px;">EHR-Native Threats</h3>';
+    compData.ehrNativeThreats.forEach(t => {
+      html += '<div class="comp-ref-card">';
+      html += '<h4>' + escHTML(t.name) + ' <span class="badge ' + (t.threatLevel === 'high' ? 'badge-conditional' : t.threatLevel === 'medium' ? 'badge-unknown' : 'badge-confirmed') + '">' + escHTML(t.threatLevel) + '</span></h4>';
+      html += '<div style="font-size:12px;">' + escHTML(t.details || t.status || '') + '</div>';
+      if (t.internalIntel) html += '<div style="font-size:11px;color:#999;margin-top:4px;">Internal: ' + escHTML(t.internalIntel) + '</div>';
+      html += '</div>';
+    });
+  }
+
+  // Market share
+  if (compData.marketShareRanking) {
+    html += '<h3 style="margin:20px 0 12px;">Market Share Ranking (Ambient AI)</h3>';
+    html += '<div class="section"><ol style="padding-left:20px;font-size:13px;">';
+    compData.marketShareRanking.forEach(r => {
+      const isCommure = r.name.toLowerCase().includes('commure');
+      html += '<li style="margin-bottom:4px;' + (isCommure ? 'font-weight:700;color:var(--blue-litmus);' : '') + '">' + escHTML(r.name) + '</li>';
+    });
+    html += '</ol></div>';
+  }
+
+  body.innerHTML = html;
+}
+
+// ---- UTILS ----
+function escHTML(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function detailRow(label, value) {
+  return '<div class="detail-row"><span class="detail-label">' + escHTML(label) + '</span><span class="detail-value">' + value + '</span></div>';
+}
+
+// ---- INIT ----
+loadData();
+</script>
+</body>
+</html>
