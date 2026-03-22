@@ -137,10 +137,16 @@ header h1 { font-size: 18px; font-weight: 700; }
       document.getElementById('loading').style.display = 'none';
       const rows = parseCSV(csv);
       if (rows.length < 2) { showError('CSV is empty or malformed.'); return; }
-      const headers = rows[0];
-      const records = rows.slice(1).map(row => {
+      // Find header row (contains 'EHR Name')
+      let headerIdx = -1;
+      for (let i = 0; i < Math.min(rows.length, 10); i++) {
+        if (rows[i].some(cell => cell.replace(/[\r\n]+/g, ' ').trim() === 'EHR Name')) { headerIdx = i; break; }
+      }
+      if (headerIdx === -1) { showError('Could not find header row in CSV.'); return; }
+      const headers = rows[headerIdx].map(h => h.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim());
+      const records = rows.slice(headerIdx + 1).filter(row => row.length > 1 && row[0].trim()).map(row => {
         const obj = {};
-        headers.forEach((h, i) => obj[h.trim()] = (row[i] || '').trim());
+        headers.forEach((h, i) => obj[h] = (row[i] || '').replace(/[\r\n]+/g, ' ').trim());
         return obj;
       });
 
