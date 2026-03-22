@@ -498,7 +498,7 @@ function renderEHRDetails() {
   // Kill-shot qualifier from JSON
   let killShot = '';
   if (compData && compData.ehrTechnicalReference) {
-    const keyMap = { 'Epic': 'epic', 'MEDITECH Expanse V2': 'meditech', 'MEDITECH Expanse': 'meditech', 'MEDITECH Magic': 'meditech', 'MEDITECH C/S': 'meditech', 'eClinicalWorks': 'eclinicalworks', 'athenahealth': 'athenahealth' };
+    const keyMap = { 'Epic': 'epic', 'MEDITECH Expanse V2': 'meditech', 'MEDITECH Expanse': 'meditech', 'MEDITECH Magic': 'meditech', 'MEDITECH C/S': 'meditech', 'eClinicalWorks': 'eclinicalworks', 'athenahealth': 'athenahealth', 'Cerner / Oracle Health': 'cerner' };
     const jsonKey = keyMap[ehrName];
     if (jsonKey && compData.ehrTechnicalReference[jsonKey]) {
       killShot = compData.ehrTechnicalReference[jsonKey].killShotQualifier || '';
