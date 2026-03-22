@@ -246,6 +246,19 @@ a.field-link:hover { text-decoration:underline; }
         <div id="comp-exposure-body"></div>
       </div>
 
+      <!-- RCM Critical Reminders -->
+      <div class="section" id="sec-rcm-reminders" style="display:none;">
+        <div style="background:#FEF9E7;border:1px solid var(--yellow-flag);border-radius:6px;padding:14px 16px;">
+          <h4 style="color:#7D6608;margin-bottom:8px;font-size:13px;">⚠ RCM CRITICAL REMINDERS — Do Not Over-Promise</h4>
+          <div style="font-size:12px;color:#7D6608;">
+            <div style="margin-bottom:6px;"><strong>NO EHR Write-Back:</strong> Commure does not post payments into the customer EHR (Epic, Cerner, etc.).</div>
+            <div style="margin-bottom:6px;"><strong>NO Prior Auth Automation:</strong> Sites manually upload PA documents. Commure cannot pull from payer portals.</div>
+            <div style="margin-bottom:6px;"><strong>NO In/Out-of-Network CPT Indicators:</strong> Eligibility is service-type only (e.g., PT, Office Visit), not CPT-level.</div>
+            <div style="margin-top:8px;font-style:italic;font-size:11px;"><strong>Site always owns:</strong> (1) Credentialing &amp; payer contracting, (2) Prior authorizations, (3) ~10-20% of denials requiring clinical input from the rendering provider.</div>
+          </div>
+        </div>
+      </div>
+
       <!-- RCM Demo Click Path -->
       <div class="section" id="sec-demo-path" style="display:none;">
         <h3>RCM Demo Click Path</h3>
@@ -474,6 +487,7 @@ function renderMain() {
   renderEHRDetails();
   renderProductFit();
   renderCompExposure();
+  renderRCMReminders();
   renderDemoPath();
 }
 
@@ -558,14 +572,58 @@ function renderProductFit() {
   // Product status mapping
   const productMap = {
     'rcm': { csvField: 'RCM Status', label: 'RCM Platform' },
-    'ambient': { csvField: 'Ambient Status', label: 'Ambient AI' },
-    'pxp': { csvField: 'Pro Supported', label: 'PXP' } // PXP mapped to what's available
+    'ambient': { csvField: 'Ambient Status', label: 'Ambient AI' }
+  };
+
+  // PXP per-EHR status (from PXP Agents team + Notion wiki, Mar 2026)
+  const pxpStatus = {
+    'Epic': { status: 'Confirmed', note: 'PXP Agents live (Optimus deployment). RingCentral telephony. Care Pathways — validate with PXP team.', agents: true },
+    'ModMed': { status: 'Confirmed', note: 'PXP Agents live (MedVanta deployment). Care Pathways — validate with PXP team.', agents: true },
+    'MEDITECH Expanse V2': { status: 'Unknown', note: 'Agents not yet deployed on MEDITECH. Care Pathways — validate with PXP team.', agents: false },
+    'MEDITECH Expanse': { status: 'Unknown', note: 'Agents not yet deployed on MEDITECH. Care Pathways — validate with PXP team.', agents: false },
+    'MEDITECH Magic': { status: 'Not Supported', note: 'No API path for PXP on Magic. Pro (PatientKeeper) may be the right conversation instead.', agents: false },
+    'MEDITECH C/S': { status: 'Not Supported', note: 'No API path for PXP on C/S. Pro (PatientKeeper) may be the right conversation instead.', agents: false },
+    'athenahealth': { status: 'Unknown', note: 'PXP not yet validated on athena. Validate with PXP team before positioning.', agents: false },
+    'eClinicalWorks': { status: 'Unknown', note: 'PXP not yet validated on eCW. Validate with PXP team before positioning.', agents: false },
+    'Cerner / Oracle Health': { status: 'Unknown', note: 'PXP not yet validated on Cerner. Validate with PXP team before positioning.', agents: false }
   };
 
   // Integration notes from JSON
   const ehrJsonNotes = getEHRJsonNotes(ehrName);
 
   selectedProducts.forEach(prod => {
+    if (prod === 'pxp') {
+      // PXP uses its own data source, not the Pro CSV column
+      const pxp = pxpStatus[ehrName] || { status: 'Unknown', note: 'PXP coverage not yet documented for this EHR. Validate with PXP team.', agents: false };
+      let badgeClass = pxp.status === 'Confirmed' ? 'badge-confirmed' : pxp.status === 'Not Supported' ? 'badge-limited' : 'badge-unknown';
+      html += '<div style="margin-bottom:12px;">';
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><strong>PXP (Patient Experience)</strong> <span class="badge ' + badgeClass + '">' + escHTML(pxp.status) + '</span></div>';
+      html += '<div style="font-size:12px;color:#555;">' + escHTML(pxp.note) + '</div>';
+
+      // Show Agents status from CSV (separate from PXP but related)
+      const agentsSupported = ehr['Agents Supported'] || '';
+      const agentsTier = ehr['Agents Tier'] || '';
+      const agentsNotes = ehr['Agents Notes'] || '';
+      if (agentsSupported) {
+        let agentBadge = 'badge-unknown';
+        let agentLabel = agentsSupported;
+        if (agentsSupported === '✅ Yes') { agentBadge = 'badge-confirmed'; agentLabel = 'Available'; }
+        else if (agentsSupported === '❌ No') { agentBadge = 'badge-unknown'; agentLabel = 'Not Available'; }
+        html += '<div style="margin-top:8px;padding:8px 12px;background:#F5F6F8;border-radius:4px;">';
+        html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><strong style="font-size:12px;">RCM Agents</strong> <span class="badge ' + agentBadge + '">' + escHTML(agentLabel) + '</span>';
+        if (agentsTier) html += ' <span style="font-size:11px;color:#666;">' + escHTML(agentsTier) + '</span>';
+        html += '</div>';
+        if (agentsNotes) html += '<div style="font-size:11px;color:#555;">' + escHTML(agentsNotes) + '</div>';
+        html += '</div>';
+      }
+
+      if (pxp.status !== 'Confirmed') {
+        html += '<div class="yellow-flag">Confirm PXP scope with PXP product team before positioning.</div>';
+      }
+      html += '</div>';
+      return;
+    }
+
     const info = productMap[prod];
     if (!info) return;
     const status = ehr[info.csvField] || 'Unknown';
@@ -582,7 +640,6 @@ function renderProductFit() {
     let note = '';
     if (prod === 'ambient' && ehrJsonNotes.ambientNote) note = ehrJsonNotes.ambientNote;
     else if (prod === 'rcm' && ehrJsonNotes.rcmNote) note = ehrJsonNotes.rcmNote;
-    else if (prod === 'pxp') note = 'PXP availability: verify with product team for this EHR.';
 
     // Use ambient-specific fields from CSV
     if (prod === 'ambient') {
@@ -608,7 +665,7 @@ function renderProductFit() {
 
 function getEHRJsonNotes(ehrName) {
   if (!compData || !compData.ehrTechnicalReference) return {};
-  const keyMap = { 'Epic': 'epic', 'MEDITECH Expanse V2': 'meditech', 'MEDITECH Expanse': 'meditech', 'MEDITECH Magic': 'meditech', 'MEDITECH C/S': 'meditech', 'eClinicalWorks': 'eclinicalworks', 'athenahealth': 'athenahealth', 'Cerner / Oracle Health': 'epic' };
+  const keyMap = { 'Epic': 'epic', 'MEDITECH Expanse V2': 'meditech', 'MEDITECH Expanse': 'meditech', 'MEDITECH Magic': 'meditech', 'MEDITECH C/S': 'meditech', 'eClinicalWorks': 'eclinicalworks', 'athenahealth': 'athenahealth', 'Cerner / Oracle Health': 'cerner' };
   const key = keyMap[ehrName];
   if (!key || !compData.ehrTechnicalReference[key]) return {};
   const ref = compData.ehrTechnicalReference[key];
@@ -690,6 +747,13 @@ function renderCompExposure() {
 
   html += '<div class="intel-date">Intel compiled: ' + escHTML(compData.meta ? compData.meta.lastCompiled : 'unknown') + '</div>';
   body.innerHTML = html;
+}
+
+// ---- RCM REMINDERS ----
+function renderRCMReminders() {
+  const sec = document.getElementById('sec-rcm-reminders');
+  if (!selectedProducts.has('rcm')) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
 }
 
 // ---- DEMO PATH ----
