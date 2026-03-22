@@ -537,7 +537,7 @@ function renderEHRDetails() {
   let html = '';
   html += detailRow('Integration Method', ehr['RCM Method'] || 'Not documented');
   if (killShot) {
-    html += detailRow('Kill-Shot Qualifier', '<strong style="color:var(--red);">' + escHTML(killShot) + '</strong>');
+    html += detailRow('Ask First', '<strong style="color:var(--red);">' + escHTML(killShot) + '</strong>');
   }
   html += detailRow('Scribe Timeline', escHTML(scribeTimeline));
   html += detailRow('With RCM', escHTML(rcmTimeline));
